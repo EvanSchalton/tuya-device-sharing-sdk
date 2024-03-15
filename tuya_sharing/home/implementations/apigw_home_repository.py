@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-from .customerapi import CustomerApi
+from ...customerapi import CustomerApi
+from ..smart_life_home import SmartLifeHome
+from ..abc import IHomeRepository
 
-
-class SmartLifeHome:
-    def __init__(self, id: str, name: str):
-        self.id = id
-        self.name = name
-
-
-class HomeRepository:
+class APIGWHomeRepository(IHomeRepository):
     def __init__(self, customer_api: CustomerApi):
         self.api = customer_api
 

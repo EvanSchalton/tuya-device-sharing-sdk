@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 from typing import Any
 from .customerapi import CustomerApi
-
+from .api_type import APIType
 
 class SharingScene(SimpleNamespace):
     """Smart Life Scene.
@@ -29,6 +29,9 @@ class SceneRepository:
     def query_scenes(self, home_ids: list) -> list[SharingScene]:
         _scenes = []
         for home_id in home_ids:
+            if self.api.api_type == APIType.OPENAPI:
+                raise NotImplementedError("/v1.0/m/scene/ha/home/scenes not implemented for {APIType.OPENAPI}")
+
             response = self.api.get("/v1.0/m/scene/ha/home/scenes", {"homeId": home_id})
             if response["success"]:
                 for item in response["result"]:
@@ -39,5 +42,8 @@ class SceneRepository:
         return _scenes
 
     def trigger_scene(self, home_id: str, scene_id: str):
+        if self.api.api_type == APIType.OPENAPI:
+            raise NotImplementedError("/v1.0/m/scene/ha/trigger not implemented for {APIType.OPENAPI}")
+
         response = self.api.post("/v1.0/m/scene/ha/trigger", None, {"homeId": home_id, "sceneId": scene_id})
         return response["result"]

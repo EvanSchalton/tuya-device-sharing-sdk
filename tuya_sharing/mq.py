@@ -12,6 +12,7 @@ from paho.mqtt import client as mqtt
 from urllib.parse import urlsplit
 import json
 import uuid
+from .api_type import APIType
 
 CONNECT_FAILED_NOT_AUTHORISED = 5
 
@@ -44,8 +45,13 @@ class SharingMQ(threading.Thread):
 
     def _get_mqtt_config(self) -> SharingMQConfig:
         link_id = f"tuya-device-sharing-sdk-python.{uuid.uuid1()}"
-        response = self.api.post("/v1.0/m/life/ha/access/config", None,
-                                 {"linkId": link_id})
+        if self.api.api_type == APIType.OPENAPI:
+            response = self.api.post("/v1.0/iot-03/open-hub/access-config", None, {"linkId": link_id})
+        elif self.api.api_type == APIType.APIGW:
+            response = self.api.post("/v1.0/m/life/ha/access/config", None, {"linkId": link_id})
+        else:
+            raise NotImplementedError(f"api {self.api.api_type} not implemented")
+        
         if (response.get("success"), False) is False:
             raise Exception("get mqtt config error.")
 

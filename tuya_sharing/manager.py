@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import Any, Literal, Optional
 
 from .customerapi import CustomerApi, CustomerTokenInfo, SharingTokenListener
-from .device import DeviceRepository, CustomerDevice
-from .home import HomeRepository, SmartLifeHome
+from .device import IDeviceRepository, CustomerDevice, OpenAPIDeviceRepository, APIGWDeviceRepository
+from .home import SmartLifeHome, IHomeRepository, APIGWHomeRepository, OpenAPIHomeRepository
 from .scenes import SceneRepository
 from .user import UserRepository
 from .strategy import strategy
+from .api_type import APIType
 
 from abc import ABCMeta, abstractclassmethod
 from .customerlogging import logger
@@ -34,6 +35,7 @@ class Manager:
             end_point: str,
             token_response: dict[str, Any] = None,
             listener: SharingTokenListener = None,
+            api: APIType = APIType.APIGW
     ) -> None:
         self.terminal_id = terminal_id
         self.customer_api = CustomerApi(
@@ -45,8 +47,16 @@ class Manager:
         )
         self.device_map: dict[str, CustomerDevice] = {}
         self.user_homes: list[SmartLifeHome] = []
-        self.home_repository = HomeRepository(self.customer_api)
-        self.device_repository = DeviceRepository(self.customer_api)
+
+        if api == APIType.OPENAPI:
+            self.home_repository: IHomeRepository = OpenAPIHomeRepository(self.customer_api)
+            self.device_repository: IDeviceRepository = OpenAPIDeviceRepository(self.customer_api)
+        elif api == APIType.APIGW:
+            self.home_repository = APIGWHomeRepository(self.customer_api)
+            self.device_repository = APIGWDeviceRepository(self.customer_api)
+        else:
+            raise NotImplementedError(f"api {api} not implemented")
+
         self.device_listeners = set()
 
         self.mq = None
@@ -106,6 +116,9 @@ class Manager:
         Returns:
             None or URL to the requested stream
         """
+        if self.customer_api.api_type == APIType.OPENAPI:
+            raise NotImplementedError("openapi not support '/v1.0/m/ipc/{device_id}/stream/actions/allocate' endpoint")
+
         response = self.customer_api.post(f"/v1.0/m/ipc/{device_id}/stream/actions/allocate", None,
                                           {"type": stream_type})
         if response["success"]:

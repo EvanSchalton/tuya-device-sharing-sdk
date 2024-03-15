@@ -1,7 +1,7 @@
 """Customer API."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 import requests
 from .customerlogging import logger
 import json
@@ -12,7 +12,7 @@ import base64
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import uuid
 from abc import ABCMeta
-
+from .api_type import APIType
 import time
 
 
@@ -43,7 +43,8 @@ class CustomerApi:
             client_id: str,
             user_code: str,
             end_point: str,
-            listener: SharingTokenListener
+            listener: SharingTokenListener,
+            api_type: Optional[APIType] = APIType.APIGW
     ):
         self.session = requests.session()
         self.token_info = token_info
@@ -52,6 +53,19 @@ class CustomerApi:
         self.endpoint = end_point
         self.refresh_token = False
         self.token_listener = listener
+        self.api_type = CustomerApi.resolve_api_type(end_point, api_type)
+
+    @staticmethod
+    def resolve_api_type(end_point: str, api_type: Optional[APIType] = None) -> APIType:
+        if api_type is None:
+            for _api_type in APIType:
+                if _api_type.value in end_point:
+                    result = _api_type
+                    break
+        else:
+            result = api_type
+        assert result is not None, f"api not provided or found in '{end_point}'"
+        return result
 
     def __request(
             self,
@@ -142,20 +156,22 @@ class CustomerApi:
 
         self.refresh_token = True
         try:
-            response = self.get("/v1.0/m/token/" + self.token_info.refresh_token)
-
+            if self.api_type == APIType.APIGW:
+                response = self.get(f"/v1.0/m/token/{self.token_info.refresh_token}")
+                result_keys: list[str] = ["expireTime", "uid", "accessToken", "refreshToken"]
+            elif self.api_type == APIType.OPENAPI:
+                response = self.get(f"/v1.0/token/{ self.token_info.refresh_token}")
+                result_keys = ["expire_ime", "uid", "access_token", "refresh_token"]
+            else:
+                raise NotImplementedError(f"api {self.api_type} not implemented")
+            
+        
             if response.get("success"):
-                result = response.get("result", {})
-                token_info = {
-                    "t": response["t"],
-                    "expire_time": result["expireTime"],
-                    "uid": result["uid"],
-                    "access_token": result["accessToken"],
-                    "refresh_token": result["refreshToken"]
-                }
+                token_info = { **{response.get("result", {})[key] for key in result_keys}, "t": response["t"] }
                 self.token_info = CustomerTokenInfo(token_info)
                 if self.token_listener is not None:
                     self.token_listener.update_token(token_info)
+
         except Exception as e:
             logger.error("net work error = %s", e)
         finally:

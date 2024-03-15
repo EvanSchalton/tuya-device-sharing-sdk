@@ -7,6 +7,8 @@ import requests
 
 URL_PATH = "apigw.iotbing.com"
 
+from .api_type import APIType
+from warnings import warn
 
 class LoginControl:
     def __init__(self):
@@ -37,12 +39,16 @@ class UserRepository:
 
     def unload(self, terminal_id: str):
         self.api.refresh_access_token_if_need()
+        if self.api.api_type == APIType.OPENAPI:
+            warn("/v1.0/m/token/terminal/expire not implemented for {APIType.OPENAPI}")
         self.api.post("/v1.0/m/token/terminal/expire", None, {
             "accessToken": self.api.token_info.access_token,
             "terminalId": terminal_id
         })
 
     def user_version_report(self, system_version: str, ty_plugin_version: str, ty_sdk_version: str):
+        if self.api.api_type == APIType.OPENAPI:
+            warn("/v1.0/m/life/home-assistant/qrcode/versions not implemented for {APIType.OPENAPI}")
         self.api.post("/v1.0/m/life/home-assistant/qrcode/versions", None, {
             "system_version": system_version,
             "ty_plugin_version": ty_plugin_version,
